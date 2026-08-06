@@ -23,6 +23,8 @@ public interface InterviewService {
 
     Page<InterviewDto> findByInterviewerId(Long interviewerId, Pageable pageable);
 
+    Page<InterviewDto> findByStatus(InterviewStatus status, Pageable pageable);
+
     void delete(Long id);
 
     InterviewDto updateStatus(Long id, InterviewStatus status);
@@ -30,5 +32,6 @@ public interface InterviewService {
     InterviewDto addFeedback(Long id,
                              String feedback,
                              String notes,
+                             Boolean approved,
                              InterviewResult result);
 }

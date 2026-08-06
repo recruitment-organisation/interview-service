@@ -10,7 +10,11 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "interviews")
+@Table(name = "interviews", indexes = {
+        @Index(name = "idx_interview_application", columnList = "application_id"),
+        @Index(name = "idx_interview_status", columnList = "status"),
+        @Index(name = "idx_interview_interviewer_status_scheduled", columnList = "interviewer_id,status,scheduled_at")
+})
 @Getter
 @Setter
 
@@ -22,13 +26,16 @@ public class Interview {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Version
+    private Long version;
+
+    @Column(name = "application_id", nullable = false)
     private Long applicationId;
 
-    @Column(nullable = false)
+    @Column(name = "interviewer_id", nullable = false)
     private Long interviewerId;
 
-    @Column(nullable = false)
+    @Column(name = "scheduled_at", nullable = false)
     private LocalDateTime scheduledAt;
 
     @Column(nullable = false)
@@ -37,6 +44,10 @@ public class Interview {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private InterviewType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "stage", nullable = false)
+    private InterviewStage stage;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -54,6 +65,9 @@ public class Interview {
 
     @Enumerated(EnumType.STRING)
     private InterviewResult result;
+
+    @Column(name = "approved")
+    private Boolean approved;
 
     @PrePersist
     public void prePersist() {

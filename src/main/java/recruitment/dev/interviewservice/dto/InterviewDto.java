@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.*;
 import recruitment.dev.interviewservice.entities.InterviewResult;
 import recruitment.dev.interviewservice.entities.InterviewStatus;
+import recruitment.dev.interviewservice.entities.InterviewStage;
 import recruitment.dev.interviewservice.entities.InterviewType;
 
 import java.time.LocalDateTime;
@@ -40,6 +41,8 @@ public class InterviewDto {
     @NotNull
     private InterviewType type;
 
+    private InterviewStage stage;
+
     private InterviewStatus status;
 
     private String meetingLink;
@@ -53,4 +56,6 @@ public class InterviewDto {
     private String feedback;
 
     private InterviewResult result;
+
+    private Boolean approved;
 }

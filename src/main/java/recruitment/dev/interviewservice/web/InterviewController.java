@@ -1,11 +1,14 @@
 package recruitment.dev.interviewservice.web;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import recruitment.dev.interviewservice.dto.InterviewDto;
@@ -17,12 +20,14 @@ import recruitment.dev.interviewservice.service.InterviewService;
 @RestController
 @RequestMapping("/interviews")
 @RequiredArgsConstructor
+@Validated
 public class InterviewController {
 
 
     private final InterviewService interviewService;
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
     @PostMapping
     public ResponseEntity<InterviewDto> create(
             @Valid @RequestBody InterviewDto dto) {
@@ -33,6 +38,7 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
     @PutMapping("/{id}")
     public ResponseEntity<InterviewDto> update(
             @PathVariable Long id,
@@ -44,6 +50,7 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER') or @interviewAuthorization.isAssignedInterviewer(#id, authentication)")
     @GetMapping("/{id}")
     public ResponseEntity<InterviewDto> findById(
             @PathVariable Long id) {
@@ -54,6 +61,7 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
     @GetMapping
     public ResponseEntity<Page<InterviewDto>> findAll(
             Pageable pageable) {
@@ -64,6 +72,7 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
     @GetMapping("/application/{applicationId}")
     public ResponseEntity<Page<InterviewDto>> findByApplication(
             @PathVariable Long applicationId,
@@ -78,6 +87,7 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER') or @interviewAuthorization.isCurrentInterviewer(#interviewerId, authentication)")
     @GetMapping("/interviewer/{interviewerId}")
     public ResponseEntity<Page<InterviewDto>> findByInterviewer(
             @PathVariable Long interviewerId,
@@ -91,7 +101,16 @@ public class InterviewController {
         );
     }
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
+    @GetMapping("/status/{status}")
+    public ResponseEntity<Page<InterviewDto>> findByStatus(
+            @PathVariable InterviewStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(interviewService.findByStatus(status, pageable));
+    }
 
+
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER') or @interviewAuthorization.isAssignedInterviewer(#id, authentication)")
     @PatchMapping("/{id}/status")
     public ResponseEntity<InterviewDto> updateStatus(
             @PathVariable Long id,
@@ -103,24 +122,28 @@ public class InterviewController {
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER') or @interviewAuthorization.isAssignedInterviewer(#id, authentication)")
     @PatchMapping("/{id}/feedback")
     public ResponseEntity<InterviewDto> addFeedback(
             @PathVariable Long id,
-            @RequestParam String feedback,
+            @RequestParam @NotBlank String feedback,
             @RequestParam(required = false) String notes,
-            @RequestParam InterviewResult result) {
+            @RequestParam(required = false) Boolean approved,
+            @RequestParam(required = false) InterviewResult result) {
 
         return ResponseEntity.ok(
                 interviewService.addFeedback(
                         id,
                         feedback,
                         notes,
+                        approved,
                         result
                 )
         );
     }
 
 
+    @PreAuthorize("hasAnyRole('HR', 'MANAGER')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable Long id) {

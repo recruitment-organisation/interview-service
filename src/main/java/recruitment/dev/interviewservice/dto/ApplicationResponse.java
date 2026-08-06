@@ -1,5 +1,12 @@
 package recruitment.dev.interviewservice.dto;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
 public class ApplicationResponse {
 
     private Long id;
@@ -9,4 +16,10 @@ public class ApplicationResponse {
     private Long jobOfferId;
 
     private String status;
+
+    private String currentTaskId;
+
+    private String currentTaskDefinitionKey;
+
+    private String currentTaskName;
 }

@@ -3,26 +3,23 @@ spring:
     name: interview-service
   datasource:
     url: ${INTERVIEW_DB_URL:jdbc:postgresql://localhost:5432/interview_db}
-    username: ${INTERVIEW_DB_USERNAME:admin}
-    password: ${INTERVIEW_DB_PASSWORD:admin123}
+    username: ${INTERVIEW_DB_USERNAME}
+    password: ${INTERVIEW_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
-  cloud:
-    config:
-      enabled: true
-      label: main
 
-  config:
-    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:9999}
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
 
   security:
     oauth2:
@@ -48,7 +45,18 @@ eureka:
     prefer-ip-address: true
 logging:
   level:
-    org.hibernate.SQL: debug
-    org.hibernate.orm.jdbc.bind: trace
-    org.springframework.security: TRACE
-    org.springframework.web: DEBUG
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
+    org.springframework.security: warn
+    org.springframework.web: warn
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: optional:configserver:${CONFIG_SERVICE_URL:http://localhost:9999}
+  cloud:
+    config:
+      enabled: true
+      label: main
