@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import recruitment.dev.interviewservice.dto.ApplicationResponse;
 import recruitment.dev.interviewservice.dto.EmployeeResponse;
 import recruitment.dev.interviewservice.dto.InterviewDto;
+import recruitment.dev.interviewservice.dto.SendNotificationRequest;
 import recruitment.dev.interviewservice.dto.WorkflowCompleteTaskRequest;
 import recruitment.dev.interviewservice.entities.Interview;
 import recruitment.dev.interviewservice.entities.InterviewResult;
@@ -21,6 +22,7 @@ import recruitment.dev.interviewservice.exception.ResourceNotFoundException;
 import recruitment.dev.interviewservice.feign.ApplicationClient;
 import recruitment.dev.interviewservice.feign.BearerTokenProvider;
 import recruitment.dev.interviewservice.feign.EmployeeClient;
+import recruitment.dev.interviewservice.feign.NotificationClient;
 import recruitment.dev.interviewservice.feign.WorkflowClient;
 import recruitment.dev.interviewservice.mapper.InterviewMapper;
 import recruitment.dev.interviewservice.repository.InterviewRepository;
@@ -50,6 +52,7 @@ public class InterviewServiceImpl implements InterviewService {
     private final InterviewMapper mapper;
     private final ApplicationClient applicationClient;
     private final EmployeeClient employeeClient;
+    private final NotificationClient notificationClient;
     private final WorkflowClient workflowClient;
     private final BearerTokenProvider bearerTokenProvider;
 
@@ -58,13 +61,15 @@ public class InterviewServiceImpl implements InterviewService {
         validateInterview(dto);
         ApplicationResponse application = loadApplication(dto.getApplicationId());
         InterviewStage stage = resolveStage(application);
-        validateEmployee(dto.getInterviewerId());
+        EmployeeResponse interviewer = loadEmployee(dto.getInterviewerId());
         ensureNoScheduleConflict(dto, null);
 
         Interview interview = mapper.toEntity(dto);
         interview.setStage(stage);
         interview.setStatus(InterviewStatus.SCHEDULED);
-        return mapper.toDto(repository.save(interview));
+        Interview saved = repository.save(interview);
+        notifyAssignedInterviewer(dto, interviewer);
+        return mapper.toDto(saved);
     }
 
     @Override
@@ -73,16 +78,21 @@ public class InterviewServiceImpl implements InterviewService {
         ensureInterviewCanBeEdited(interview);
         validateInterview(dto);
         loadApplication(dto.getApplicationId());
-        validateEmployee(dto.getInterviewerId());
+        EmployeeResponse interviewer = loadEmployee(dto.getInterviewerId());
         ensureNoScheduleConflict(dto, id);
 
         boolean wasRescheduled = !dto.getScheduledAt().equals(interview.getScheduledAt());
+        boolean wasReassigned = !dto.getInterviewerId().equals(interview.getInterviewerId());
         mapper.updateEntity(dto, interview);
         if (wasRescheduled) {
             interview.setStatus(InterviewStatus.RESCHEDULED);
         }
 
-        return mapper.toDto(repository.save(interview));
+        Interview saved = repository.save(interview);
+        if (wasRescheduled || wasReassigned) {
+            notifyAssignedInterviewer(dto, interviewer);
+        }
+        return mapper.toDto(saved);
     }
 
     @Override
@@ -208,18 +218,46 @@ public class InterviewServiceImpl implements InterviewService {
         }
     }
 
-    private void validateEmployee(Long interviewerId) {
+    private EmployeeResponse loadEmployee(Long interviewerId) {
         try {
             EmployeeResponse employee = employeeClient.getEmployeeById(
                     interviewerId, bearerTokenProvider.currentAuthorizationHeader());
             if (employee == null || !interviewerId.equals(employee.getId())) {
                 throw new BusinessException("Interviewer not found: " + interviewerId);
             }
+            if (employee.getKeycloakId() == null || employee.getKeycloakId().isBlank()) {
+                throw new BusinessException("Interviewer has no notification identity: " + interviewerId);
+            }
+            return employee;
         } catch (FeignException.NotFound exception) {
             throw new BusinessException("Interviewer not found: " + interviewerId);
         } catch (FeignException exception) {
             throw new DependencyUnavailableException("Unable to validate employee-service", exception);
         }
+    }
+
+    private void notifyAssignedInterviewer(InterviewDto interview, EmployeeResponse interviewer) {
+        String mode = switch (interview.getType()) {
+            case ONLINE -> interview.getMeetingLink() == null || interview.getMeetingLink().isBlank()
+                    ? "en ligne"
+                    : "en ligne : " + interview.getMeetingLink();
+            case ONSITE -> interview.getLocation() == null || interview.getLocation().isBlank()
+                    ? "en présentiel"
+                    : "en présentiel : " + interview.getLocation();
+            case PHONE -> "par téléphone";
+        };
+        String message = "Vous avez été sélectionné pour mener un entretien le "
+                + interview.getScheduledAt() + " (" + interview.getDuration() + " min, " + mode + ").";
+
+        notificationClient.sendNotification(new SendNotificationRequest(
+                null,
+                interviewer.getKeycloakId(),
+                interview.getApplicationId(),
+                interviewer.getEmail(),
+                "INTERVIEW_SCHEDULED",
+                "Nouvel entretien assigné",
+                message
+        ));
     }
 
     private InterviewStage resolveStage(ApplicationResponse application) {

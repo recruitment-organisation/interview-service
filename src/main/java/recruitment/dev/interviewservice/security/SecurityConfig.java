@@ -41,15 +41,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt -> jwt
-                        .decoder(jwtDecoder())
                         .jwtAuthenticationConverter(jwtAuthConverter)))
                 .build();
     }
 
-    @Bean
-    JwtDecoder jwtDecoder() {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuerUri));
-        return decoder;
-    }
+
 }

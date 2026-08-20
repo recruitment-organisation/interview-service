@@ -20,6 +20,7 @@ import recruitment.dev.interviewservice.exception.ResourceNotFoundException;
 import recruitment.dev.interviewservice.feign.ApplicationClient;
 import recruitment.dev.interviewservice.feign.BearerTokenProvider;
 import recruitment.dev.interviewservice.feign.EmployeeClient;
+import recruitment.dev.interviewservice.feign.NotificationClient;
 import recruitment.dev.interviewservice.feign.WorkflowClient;
 import recruitment.dev.interviewservice.mapper.InterviewMapper;
 import recruitment.dev.interviewservice.repository.InterviewRepository;
@@ -39,6 +40,7 @@ class InterviewServiceImplTest {
     @Mock private InterviewMapper mapper;
     @Mock private ApplicationClient applicationClient;
     @Mock private EmployeeClient employeeClient;
+    @Mock private NotificationClient notificationClient;
     @Mock private WorkflowClient workflowClient;
     @Mock private BearerTokenProvider bearerTokenProvider;
     @InjectMocks private InterviewServiceImpl service;
@@ -56,6 +58,8 @@ class InterviewServiceImplTest {
         when(employeeClient.getEmployeeById(anyLong(), anyString())).thenAnswer(invocation -> {
             EmployeeResponse response = new EmployeeResponse();
             response.setId(invocation.getArgument(0));
+            response.setKeycloakId("employee-keycloak-id");
+            response.setEmail("employee@example.com");
             return response;
         });
     }
@@ -76,6 +80,12 @@ class InterviewServiceImplTest {
         assertThat(service.create(dto)).isSameAs(expected);
         assertThat(entity.getStage()).isEqualTo(InterviewStage.HR_INTERVIEW);
         verify(repository).save(entity);
+        verify(notificationClient).sendNotification(argThat(request ->
+                "employee-keycloak-id".equals(request.candidateKeycloakId())
+                        && "employee@example.com".equals(request.recipientEmail())
+                        && "INTERVIEW_SCHEDULED".equals(request.type())
+                        && Long.valueOf(1L).equals(request.applicationId())
+        ));
     }
 
     @Test
@@ -102,6 +112,12 @@ class InterviewServiceImplTest {
 
     @Test
     void completesInterviewWhenFeedbackIsAdded() {
+        when(bearerTokenProvider.currentAuthorizationHeader()).thenReturn("Bearer test-token");
+        ApplicationResponse application = new ApplicationResponse();
+        application.setId(1L);
+        application.setCurrentTaskId("task-1");
+        application.setCurrentTaskDefinitionKey("hrInterview");
+        when(applicationClient.getApplicationById(1L, "Bearer test-token")).thenReturn(application);
         Interview interview = new Interview();
         interview.setStatus(InterviewStatus.IN_PROGRESS);
         interview.setApplicationId(1L);

@@ -9,6 +9,8 @@ public class EmployeeResponse {
 
     private Long id;
 
+    private String keycloakId;
+
     private String firstName;
 
     private String lastName;
