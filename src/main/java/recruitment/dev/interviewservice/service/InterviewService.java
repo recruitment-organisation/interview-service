@@ -34,4 +34,13 @@ public interface InterviewService {
                              String notes,
                              Boolean approved,
                              InterviewResult result);
+
+    InterviewDto addFeedback(Long id,
+                             String feedback,
+                             String notes,
+                             Boolean approved,
+                             InterviewResult result,
+                             Long departmentId,
+                             Long employeeRoleId,
+                             String position);
 }

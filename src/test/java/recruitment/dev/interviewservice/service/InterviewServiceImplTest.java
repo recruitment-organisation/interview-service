@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import recruitment.dev.interviewservice.dto.InterviewDto;
 import recruitment.dev.interviewservice.dto.ApplicationResponse;
@@ -137,6 +138,67 @@ class InterviewServiceImplTest {
         assertThat(interview.getStatus()).isEqualTo(InterviewStatus.COMPLETED);
         verify(workflowClient).completeTask(any(WorkflowCompleteTaskRequest.class), eq("Bearer test-token"));
         verify(repository).save(interview);
+    }
+
+    @Test
+    void sendsHiringDataAndManagerCommentWithAnAcceptedFinalDecision() {
+        when(bearerTokenProvider.currentAuthorizationHeader()).thenReturn("Bearer manager-token");
+        ApplicationResponse application = new ApplicationResponse();
+        application.setId(1L);
+        application.setCurrentTaskId("manager-task");
+        application.setCurrentTaskDefinitionKey("managerInterview");
+        when(applicationClient.getApplicationById(1L, "Bearer manager-token")).thenReturn(application);
+        Interview interview = new Interview();
+        interview.setStatus(InterviewStatus.IN_PROGRESS);
+        interview.setApplicationId(1L);
+        interview.setStage(InterviewStage.MANAGER_INTERVIEW);
+        when(repository.findById(9L)).thenReturn(Optional.of(interview));
+        when(repository.save(interview)).thenReturn(interview);
+        when(mapper.toDto(interview)).thenReturn(InterviewDto.builder().id(9L).build());
+
+        service.addFeedback(
+                9L,
+                "Profil retenu après l'entretien final",
+                "Validation du comité",
+                true,
+                InterviewResult.PASSED,
+                3L,
+                4L,
+                "Ingénieure DevOps"
+        );
+
+        ArgumentCaptor<WorkflowCompleteTaskRequest> request = ArgumentCaptor.forClass(WorkflowCompleteTaskRequest.class);
+        verify(workflowClient).completeTask(request.capture(), eq("Bearer manager-token"));
+        assertThat(request.getValue().getTaskId()).isEqualTo("manager-task");
+        assertThat(request.getValue().getVariables()).containsEntry("managerApproved", true);
+        assertThat(request.getValue().getVariables()).containsEntry("managerComment", "Profil retenu après l'entretien final");
+        assertThat(request.getValue().getVariables()).containsEntry("departmentId", 3L);
+        assertThat(request.getValue().getVariables()).containsEntry("employeeRoleId", 4L);
+        assertThat(request.getValue().getVariables()).containsEntry("position", "Ingénieure DevOps");
+    }
+
+    @Test
+    void refusesManagerAcceptanceWithoutEmployeeAssignment() {
+        Interview interview = new Interview();
+        interview.setStatus(InterviewStatus.IN_PROGRESS);
+        interview.setApplicationId(1L);
+        interview.setStage(InterviewStage.MANAGER_INTERVIEW);
+        when(repository.findById(9L)).thenReturn(Optional.of(interview));
+
+        assertThatThrownBy(() -> service.addFeedback(
+                9L,
+                "Profil retenu",
+                null,
+                true,
+                InterviewResult.PASSED,
+                null,
+                null,
+                null
+        )).isInstanceOf(BusinessException.class)
+                .hasMessage("Department is required for an accepted manager decision");
+
+        verify(repository, never()).save(any());
+        verifyNoInteractions(workflowClient);
     }
 
     @Test

@@ -129,7 +129,10 @@ public class InterviewController {
             @RequestParam @NotBlank String feedback,
             @RequestParam(required = false) String notes,
             @RequestParam(required = false) Boolean approved,
-            @RequestParam(required = false) InterviewResult result) {
+            @RequestParam(required = false) InterviewResult result,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) Long employeeRoleId,
+            @RequestParam(required = false) String position) {
 
         return ResponseEntity.ok(
                 interviewService.addFeedback(
@@ -137,7 +140,10 @@ public class InterviewController {
                         feedback,
                         notes,
                         approved,
-                        result
+                        result,
+                        departmentId,
+                        employeeRoleId,
+                        position
                 )
         );
     }

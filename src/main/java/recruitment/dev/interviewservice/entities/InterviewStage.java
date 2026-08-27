@@ -3,16 +3,18 @@ package recruitment.dev.interviewservice.entities;
 import java.util.Optional;
 
 public enum InterviewStage {
-    HR_INTERVIEW("hrInterview", "hrApproved"),
-    TECHNICAL_INTERVIEW("technicalInterview", "technicalApproved"),
-    MANAGER_INTERVIEW("managerInterview", "managerApproved");
+    HR_INTERVIEW("hrInterview", "hrApproved", "hrComment"),
+    TECHNICAL_INTERVIEW("technicalInterview", "technicalApproved", "technicalComment"),
+    MANAGER_INTERVIEW("managerInterview", "managerApproved", "managerComment");
 
     private final String taskDefinitionKey;
     private final String workflowVariable;
+    private final String commentVariable;
 
-    InterviewStage(String taskDefinitionKey, String workflowVariable) {
+    InterviewStage(String taskDefinitionKey, String workflowVariable, String commentVariable) {
         this.taskDefinitionKey = taskDefinitionKey;
         this.workflowVariable = workflowVariable;
+        this.commentVariable = commentVariable;
     }
 
     public String taskDefinitionKey() {
@@ -21,6 +23,10 @@ public enum InterviewStage {
 
     public String workflowVariable() {
         return workflowVariable;
+    }
+
+    public String commentVariable() {
+        return commentVariable;
     }
 
     public static Optional<InterviewStage> fromTaskDefinitionKey(String taskDefinitionKey) {

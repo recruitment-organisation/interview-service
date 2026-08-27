@@ -156,6 +156,20 @@ public class InterviewServiceImpl implements InterviewService {
 
     @Override
     public InterviewDto addFeedback(Long id, String feedback, String notes, Boolean approved, InterviewResult result) {
+        return addFeedback(id, feedback, notes, approved, result, null, null, null);
+    }
+
+    @Override
+    public InterviewDto addFeedback(
+            Long id,
+            String feedback,
+            String notes,
+            Boolean approved,
+            InterviewResult result,
+            Long departmentId,
+            Long employeeRoleId,
+            String position
+    ) {
         Interview interview = getInterview(id);
         if (interview.getStatus() != InterviewStatus.IN_PROGRESS) {
             throw new ConflictException("Feedback can only be added to an in-progress interview");
@@ -172,8 +186,10 @@ public class InterviewServiceImpl implements InterviewService {
         interview.setResult(finalApproved ? InterviewResult.PASSED : InterviewResult.FAILED);
         interview.setStatus(InterviewStatus.COMPLETED);
 
+        validateManagerHiringData(interview, finalApproved, departmentId, employeeRoleId, position);
+
         Interview saved = repository.save(interview);
-        completeWorkflowTask(saved, finalApproved);
+        completeWorkflowTask(saved, finalApproved, departmentId, employeeRoleId, position);
         return mapper.toDto(saved);
     }
 
@@ -285,7 +301,13 @@ public class InterviewServiceImpl implements InterviewService {
         return result == InterviewResult.PASSED;
     }
 
-    private void completeWorkflowTask(Interview interview, boolean approved) {
+    private void completeWorkflowTask(
+            Interview interview,
+            boolean approved,
+            Long departmentId,
+            Long employeeRoleId,
+            String position
+    ) {
         ApplicationResponse application = loadApplication(interview.getApplicationId());
         InterviewStage stage = interview.getStage();
         if (stage == null) {
@@ -301,8 +323,35 @@ public class InterviewServiceImpl implements InterviewService {
         WorkflowCompleteTaskRequest request = new WorkflowCompleteTaskRequest();
         request.setTaskId(application.getCurrentTaskId());
         request.getVariables().put(stage.workflowVariable(), approved);
+        request.getVariables().put(stage.commentVariable(), interview.getFeedback());
+        if (stage == InterviewStage.MANAGER_INTERVIEW && approved) {
+            request.getVariables().put("departmentId", departmentId);
+            request.getVariables().put("employeeRoleId", employeeRoleId);
+            request.getVariables().put("position", position.trim());
+        }
 
         workflowClient.completeTask(request, bearerTokenProvider.currentAuthorizationHeader());
+    }
+
+    private void validateManagerHiringData(
+            Interview interview,
+            boolean approved,
+            Long departmentId,
+            Long employeeRoleId,
+            String position
+    ) {
+        if (interview.getStage() != InterviewStage.MANAGER_INTERVIEW || !approved) {
+            return;
+        }
+        if (departmentId == null || departmentId < 1) {
+            throw new BusinessException("Department is required for an accepted manager decision");
+        }
+        if (employeeRoleId == null || employeeRoleId < 1) {
+            throw new BusinessException("Employee role is required for an accepted manager decision");
+        }
+        if (position == null || position.isBlank()) {
+            throw new BusinessException("Position is required for an accepted manager decision");
+        }
     }
 
     private void ensureNoScheduleConflict(InterviewDto dto, Long excludedInterviewId) {
