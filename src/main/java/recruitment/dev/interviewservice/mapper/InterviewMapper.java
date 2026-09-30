@@ -17,6 +17,7 @@ public interface InterviewMapper {
     @Mapping(target = "feedback", ignore = true)
     @Mapping(target = "result", ignore = true)
     @Mapping(target = "approved", ignore = true)
+    @Mapping(target = "companyId", ignore = true)
     Interview toEntity(InterviewDto interviewDto);
 
     @Mapping(target = "id", ignore = true)
@@ -26,6 +27,7 @@ public interface InterviewMapper {
     @Mapping(target = "feedback", ignore = true)
     @Mapping(target = "result", ignore = true)
     @Mapping(target = "approved", ignore = true)
+    @Mapping(target = "companyId", ignore = true)
     void updateEntity(InterviewDto dto,
                       @MappingTarget Interview entity);
 }

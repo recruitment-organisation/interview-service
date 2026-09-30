@@ -14,6 +14,7 @@ public class ApplicationResponse {
     private Long candidateId;
 
     private Long jobOfferId;
+    private Long companyId;
 
     private String status;
 

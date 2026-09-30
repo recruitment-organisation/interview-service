@@ -65,6 +65,7 @@ public class InterviewServiceImpl implements InterviewService {
         ensureNoScheduleConflict(dto, null);
 
         Interview interview = mapper.toEntity(dto);
+        interview.setCompanyId(application.getCompanyId());
         interview.setStage(stage);
         interview.setStatus(InterviewStatus.SCHEDULED);
         Interview saved = repository.save(interview);
@@ -107,11 +108,17 @@ public class InterviewServiceImpl implements InterviewService {
         return repository.findAll(pageable).map(mapper::toDto);
     }
 
+    @Override @Transactional(readOnly = true)
+    public Page<InterviewDto> findAll(Long companyId, Pageable pageable) { return repository.findByCompanyId(companyId, pageable).map(mapper::toDto); }
+
     @Override
     @Transactional(readOnly = true)
     public Page<InterviewDto> findByApplicationId(Long applicationId, Pageable pageable) {
         return repository.findByApplicationId(applicationId, pageable).map(mapper::toDto);
     }
+
+    @Override @Transactional(readOnly = true)
+    public Page<InterviewDto> findByApplicationId(Long companyId, Long applicationId, Pageable pageable) { return repository.findByCompanyIdAndApplicationId(companyId, applicationId, pageable).map(mapper::toDto); }
 
     @Override
     @Transactional(readOnly = true)
@@ -119,11 +126,17 @@ public class InterviewServiceImpl implements InterviewService {
         return repository.findByInterviewerId(interviewerId, pageable).map(mapper::toDto);
     }
 
+    @Override @Transactional(readOnly = true)
+    public Page<InterviewDto> findByInterviewerId(Long companyId, Long interviewerId, Pageable pageable) { return repository.findByCompanyIdAndInterviewerId(companyId, interviewerId, pageable).map(mapper::toDto); }
+
     @Override
     @Transactional(readOnly = true)
     public Page<InterviewDto> findByStatus(InterviewStatus status, Pageable pageable) {
         return repository.findByStatus(status, pageable).map(mapper::toDto);
     }
+
+    @Override @Transactional(readOnly = true)
+    public Page<InterviewDto> findByStatus(Long companyId, InterviewStatus status, Pageable pageable) { return repository.findByCompanyIdAndStatus(companyId, status, pageable).map(mapper::toDto); }
 
     @Override
     public void delete(Long id) {

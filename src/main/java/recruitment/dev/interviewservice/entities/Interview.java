@@ -32,6 +32,9 @@ public class Interview {
     @Column(name = "application_id", nullable = false)
     private Long applicationId;
 
+    @Column(name = "company_id")
+    private Long companyId;
+
     @Column(name = "interviewer_id", nullable = false)
     private Long interviewerId;
 

@@ -25,6 +25,7 @@ public class InterviewDto {
 
     @NotNull
     private Long applicationId;
+    private Long companyId;
 
     @NotNull
     private Long interviewerId;

@@ -18,12 +18,16 @@ public interface InterviewService {
     InterviewDto findById(Long id);
 
     Page<InterviewDto> findAll(Pageable pageable);
+    Page<InterviewDto> findAll(Long companyId, Pageable pageable);
 
     Page<InterviewDto> findByApplicationId(Long applicationId, Pageable pageable);
+    Page<InterviewDto> findByApplicationId(Long companyId, Long applicationId, Pageable pageable);
 
     Page<InterviewDto> findByInterviewerId(Long interviewerId, Pageable pageable);
+    Page<InterviewDto> findByInterviewerId(Long companyId, Long interviewerId, Pageable pageable);
 
     Page<InterviewDto> findByStatus(InterviewStatus status, Pageable pageable);
+    Page<InterviewDto> findByStatus(Long companyId, InterviewStatus status, Pageable pageable);
 
     void delete(Long id);
 
