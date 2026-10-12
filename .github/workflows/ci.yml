@@ -196,9 +196,9 @@ jobs:
           VERSION: ${{ needs.docker.outputs.version }}
         run: |
           cd gitops
-          yq -i '.image.tag = strenv(VERSION)' values/applications/interview-service.yaml
+          yq -i '.image.tag = strenv(VERSION)' values/prod/applications/interview-service.yaml
           echo "Nouveau contenu :"
-          cat values/applications/interview-service.yaml
+          cat values/prod/applications/interview-service.yaml
 
       - name: Commit and push
         env:
@@ -207,6 +207,15 @@ jobs:
           cd gitops
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add values/applications/interview-service.yaml
+          git add values/prod/applications/interview-service.yaml
+          if git diff --cached --quiet; then
+            echo "interview-service is already using ${VERSION}"
+            exit 0
+          fi
           git commit -m "chore: bump interview-service image to ${VERSION}"
-          git push origin main
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main && git push origin main && exit 0
+            git rebase --abort || true
+            sleep $((attempt * 2))
+          done
+          exit 1
