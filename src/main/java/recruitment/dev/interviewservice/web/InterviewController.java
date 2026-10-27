@@ -16,6 +16,7 @@ import recruitment.dev.interviewservice.entities.InterviewResult;
 import recruitment.dev.interviewservice.entities.InterviewStatus;
 import recruitment.dev.interviewservice.service.InterviewService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -28,6 +29,7 @@ public class InterviewController {
 
 
     private final InterviewService interviewService;
+    private final recruitment.dev.interviewservice.security.InterviewAuthorization interviewAuthorization;
 
 
     @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGER')")
@@ -86,7 +88,21 @@ public class InterviewController {
     public ResponseEntity<Page<InterviewDto>> findByInterviewer(
             @PathVariable Long interviewerId,
             Pageable pageable, @AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(isAdmin(jwt) ? interviewService.findByInterviewerId(interviewerId, pageable) : interviewService.findByInterviewerId(requiredCompany(jwt), interviewerId, pageable));
+        if (isAdmin(jwt) || !hasAnyRole(jwt, "HR", "MANAGER")) {
+            // A regular employee is already restricted to their own interviewer id by
+            // @interviewAuthorization. Employee accounts created by HR do not necessarily
+            // carry the Keycloak companyId claim, so tenant scoping must not reject them.
+            return ResponseEntity.ok(interviewService.findByInterviewerId(interviewerId, pageable));
+        }
+        return ResponseEntity.ok(interviewService.findByInterviewerId(requiredCompany(jwt), interviewerId, pageable));
+    }
+
+    @PreAuthorize("hasRole('EMPLOYEE')")
+    @GetMapping("/interviewer/me")
+    public ResponseEntity<Page<InterviewDto>> findForCurrentInterviewer(
+            Pageable pageable, Authentication authentication) {
+        Long interviewerId = interviewAuthorization.currentEmployeeId(authentication);
+        return ResponseEntity.ok(interviewService.findByInterviewerId(interviewerId, pageable));
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'MANAGER')")
@@ -169,5 +185,9 @@ public class InterviewController {
         if (jwt == null || jwt.getClaim("realm_access") == null) return false;
         Object roles = ((java.util.Map<String, Object>) jwt.getClaim("realm_access")).get("roles");
         return roles instanceof java.util.Collection<?> values && values.contains(role);
+    }
+
+    private boolean hasAnyRole(Jwt jwt, String... roles) {
+        return java.util.Arrays.stream(roles).anyMatch(role -> hasRole(jwt, role));
     }
 }

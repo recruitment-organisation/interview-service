@@ -34,6 +34,13 @@ public class InterviewAuthorization {
         return hasEmployeeRole(authentication) && interviewerId.equals(currentEmployeeId());
     }
 
+    public Long currentEmployeeId(Authentication authentication) {
+        if (!hasEmployeeRole(authentication)) {
+            throw new org.springframework.security.access.AccessDeniedException("An employee account is required");
+        }
+        return currentEmployeeId();
+    }
+
     private boolean hasEmployeeRole(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> EMPLOYEE_ROLE.equals(authority.getAuthority()));
